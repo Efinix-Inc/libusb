@@ -29,8 +29,6 @@
 #include "libusbi.h"
 #include "windows_common.h"
 
-#define EFX_LUSBK_SERVICE_NAME "EfinixLibusbK"
-
 #define EPOCH_TIME	UINT64_C(116444736000000000)	// 1970.01.01 00:00:000 in MS Filetime
 
 #define STATUS_SUCCESS	((ULONG_PTR)0UL)

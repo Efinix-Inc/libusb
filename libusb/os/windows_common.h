@@ -422,6 +422,7 @@ const char *windows_error_str(DWORD error_code);
 #endif
 
 // For loading Efinix-provided libusbK driver
+#define EFX_LUSBK_SERVICE_NAME "EfinixLibusbK"
 HMODULE load_efx_library(struct libusb_context *ctx, const char *name);
 DWORD get_value_from_service_params(struct libusb_context *ctx, const char *service_name, const char *param_value, char *out_data);
 
