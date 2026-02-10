@@ -29,6 +29,8 @@
 #include "libusbi.h"
 #include "windows_common.h"
 
+#define EFX_LUSBK_SERVICE_NAME "EfinixLibusbK"
+
 #define EPOCH_TIME	UINT64_C(116444736000000000)	// 1970.01.01 00:00:000 in MS Filetime
 
 #define STATUS_SUCCESS	((ULONG_PTR)0UL)
@@ -121,6 +123,82 @@ HMODULE load_system_library(struct libusb_context *ctx, const char *name)
 
 	sprintf(filename_start, "\\%s.dll", name);
 	return LoadLibraryA(library_path);
+}
+
+/*
+* For loading Efinix-provided libraries installed in Driver Store
+* Dynamically loads a DLL from path stored in the registry defined by the .inf
+*
+* Falls back to load_system_library if library fails to load (original libusb behavior)
+*/
+HMODULE load_efx_library(struct libusb_context *ctx, const char *name) {
+	HMODULE hmod = NULL;
+
+	char library_path[MAX_PATH];
+	const char *param_val = "EfxInstallDirectory";
+
+	DWORD path_length = get_value_from_service_params(ctx, EFX_LUSBK_SERVICE_NAME, param_val, library_path);
+	if (path_length > 0 && path_length < MAX_PATH) {
+		// -1 because path_length contains null-terminator '\0', overwrite it in library_path when appending '{name}.dll'
+		size_t remaining_space = MAX_PATH - (path_length - 1);
+		_snprintf_s(library_path + (path_length - 1), remaining_space, _TRUNCATE, "\\%s.dll", name);
+		hmod = LoadLibraryA(library_path);
+	}
+
+	if (hmod == NULL) {
+		usbi_err(ctx, "Error loading library at: %s", library_path);
+		usbi_dbg(ctx, "Attempting again using load_system_library...");
+		return load_system_library(ctx, name);
+	}
+
+	return hmod;
+}
+
+/*
+* Helper function for locating libusb driver install location in Driver Store
+* For use in load_efx_library()
+*
+* Reads path specified in registry entry:
+*	HKLM\SYSTEM\CurrentControlSet\Services\{service_name}\Parameters\{param_value}
+*
+* @param[in]	ctx				libusb context
+* @param[in]	service_name	name of the service in the registry
+* @param[in]	param_value		name of the parameter value to read from registry
+* @param[out]	out_data		receives the data of the read parameter value specified by param_value
+*
+* @return	length of out_path including null-terminator
+*/
+DWORD get_value_from_service_params(struct libusb_context *ctx, const char *service_name, const char *param_value, char *out_data)
+{
+	HKEY registry_key = HKEY_LOCAL_MACHINE;
+	char registry_subkey[MAX_PATH];
+	HKEY hParamsKey = NULL;
+	DWORD out_size = MAX_PATH;
+	LSTATUS status;
+
+	_snprintf_s(registry_subkey, MAX_PATH, _TRUNCATE, "SYSTEM\\CurrentControlSet\\Services\\%s\\Parameters", service_name);
+
+	usbi_dbg(ctx, "Querying registry path: HKLM\\%s", registry_subkey);
+
+	status = RegOpenKeyExA(registry_key, registry_subkey, 0, KEY_READ, &hParamsKey);
+	if (status != ERROR_SUCCESS) {
+		usbi_dbg(ctx, "Error while opening registry key: HKLM\\%s", registry_subkey);
+		return 0;
+	}
+
+	status = RegGetValueA(hParamsKey, NULL, param_value, RRF_RT_REG_SZ, NULL, out_data, &out_size);
+	if (status == ERROR_SUCCESS) {
+		usbi_dbg(ctx, "Successfully retrieved value data: %s", out_data);
+	}
+	else {
+		usbi_dbg(ctx, "Failed to read value '%s', status %ld", param_value, status);
+		out_size = 0;
+	}
+
+	// cleanup
+	if (hParamsKey) RegCloseKey(hParamsKey);
+
+	return out_size;
 }
 
 /* Hash table functions - modified From glibc 2.3.2:

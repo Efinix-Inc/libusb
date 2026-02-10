@@ -421,4 +421,8 @@ void windows_force_sync_completion(struct usbi_transfer *itransfer, ULONG size);
 const char *windows_error_str(DWORD error_code);
 #endif
 
+// For loading Efinix-provided libusbK driver
+HMODULE load_efx_library(struct libusb_context *ctx, const char *name);
+DWORD get_value_from_service_params(struct libusb_context *ctx, const char *service_name, const char *param_value, char *out_data);
+
 #endif
