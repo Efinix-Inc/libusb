@@ -2325,7 +2325,7 @@ static const char * const composite_driver_names[] = {
   "USBCCGP", // (Windows built-in) USB Composite Device
   "dg_ssudbus" // SAMSUNG Mobile USB Composite Device
 };
-static const char * const winusbx_driver_names[] = {"libusbK", "libusb0", "WinUSB", "EfinixLibusbK"}; // added EfinixLibusbK, new service name to search for;
+static const char * const winusbx_driver_names[] = {"libusbK", "libusb0", "WinUSB", "EfinixLibusbK"}; // added EfinixLibusbK, new service name to search for
 static const char * const hid_driver_names[] = {"HIDUSB", "MOUHID", "KBDHID"};
 const struct windows_usb_api_backend usb_api_backend[USB_API_MAX] = {
 	{
